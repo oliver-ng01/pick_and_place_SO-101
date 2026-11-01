@@ -1,19 +1,19 @@
 # Classical pick-and-place on the SO-101: project summary and arm notes
 
-*Written 22 Oct 2026. Folder: `Random Scripts/Computer vision`. Read section 2 before using this arm in any other project.*
-
----
-
 ## 1. What this project is
 
 A **classical** (no learning) pick-and-place on the SO-101 follower arm: a webcam finds a green box
 on the table, the arm picks it up and drops it in a blue box, then returns to a rest pose. Built as
 the hand-coded baseline for the SmolVLA vs ACT vs classical comparison.
 
-**Result (17 Oct 2026, `statistics for comparison.txt`):** 25 tries, 23 successes, 2 fails.
-2 of the successes were "dubious" (picked the box up across its whole width instead of by one wall).
-One fail dragged the box along the table and pushed the blue box; the green box may have been
-outside the area the homography was calibrated for.
+**Results** (full breakdown in [classical_imitation_comparison.md](classical_imitation_comparison.md)):
+
+- **Classical (17 Oct 2026):** 25 tries, 23 successes (92%), 2 fails. 2 of the successes were
+  "dubious" (picked the box up across its whole width instead of by one wall). One fail dragged the
+  box along the table and pushed the blue box; the green box may have been outside the area the
+  homography was calibrated for.
+- **ACT (31 Oct 2026):** 25 tries, 12 successes (48%). 12 / 19 with the green box to the right of the
+  blue box, 0 / 6 with it on the left, where it tends to head for the blue box's side instead.
 
 ### Pipeline
 
@@ -21,7 +21,7 @@ outside the area the homography was calibrated for.
 camera frame (640×480)
   → box_footprint.box_center      green box: bottom edges → table position of its centre
   → find_blue (main.py)           blue box: blob centre → table position
-  → test_homography.solve_ik      joint angles to hover above / descend onto the box
+  → test_homography.solve_ik      joint angles to hover 7 cm above / descend to 1.5 cm over the box
   → move_to_joints.move_to_joints smooth move, then 2 s of sag correction
   → open / close gripper, lift, move over the blue box, release
   → back to REST_POSE; repeat (Enter / g in the preview window)
@@ -32,13 +32,21 @@ camera frame (640×480)
 | File | What it does |
 |---|---|
 | `main.py` | The pick-and-place loop with live preview. Run this. |
-| `box_footprint.py` | Green-box centre from its bottom edges (explained line by line in `box_footprint explained.md`). |
+| `box_footprint.py` | Green-box centre from its bottom edges. |
+| `box_footprint explained.md` | `box_footprint.py` line by line. Its `main.py` section describes the 17 Oct one-shot hover version, not the current loop. |
 | `build_homography.py` | Builds `homography.json` (pixels → table, robot base frame, metres) from `table_points.csv`. |
-| `measure_points.py` | Records table points by touching marks with the arm (forward kinematics). |
+| `homography.json` | The fitted homography, table height, image size and joint correction (built 16 Oct 2026). |
+| `table_points.csv` | The 8 touched marks: arm joint angles, FK position, clicked pixel and ruler measurement. |
+| `measure_points.py` | Records table points by touching marks with the arm (forward kinematics). Writes `table_points2.csv` by default. |
+| `table_points2.csv` | Scratch output of `measure_points.py` (one point); not used by the build. |
 | `test_homography.py` | Click-to-hover test; also holds `solve_ik` and `load_homography`. |
 | `move_to_joints.py` | Connect, read and command the arm; joint correction; sag correction; gripper. |
 | `masking.py` | Colour-mask experiments and the HSV colour table. |
-| `README.md` | How to put the robot and camera back in the same place. |
+| `get_marker_pixel_pos.py` | Click on a camera frame to print pixel coordinates (used to locate the marks). |
+| `video.py` | Minimal webcam test (greyscale preview). |
+| `media/` | Setup photo, test shots of the box on marks 3 and 6, and GIFs of both approaches running. |
+| `classical_imitation_comparison.md` | Classical vs ACT results. |
+| `README.md` | Overview, results, how to run, and how to put the robot and camera back in the same place. |
 
 ### Measured accuracy
 
@@ -135,3 +143,7 @@ camera frame (640×480)
   shadow. The blue detection can lock onto the **robot's own blue part**, so check the cyan dot is on
   the blue box before pressing go.
 - Box size in `box_footprint.py` (5.15 × 3.5 cm footprint, 2.7 cm tall) is for this green box only.
+- Hard-coded paths and ports: the arm on `COM5` and the WSL calibration folder (`CALIB_DIR`) in
+  `move_to_joints.py`; the URDF path (`..\Robotics Control Project\SO101\so101_new_calib.urdf`, not
+  in this repo) in `main.py`, `test_homography.py`, `build_homography.py` and `measure_points.py`.
+  Change these on another PC.
